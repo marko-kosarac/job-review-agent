@@ -1,9 +1,24 @@
-from openai import OpenAI
+from openai import AsyncOpenAI
 from config import OPENAI_API_KEY
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-def analyze(cv_text: str, job_text: str) -> dict:
+async def extract_company_name(job_text: str) -> str:
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{
+            "role": "user",
+            "content": f"""Extract only the company name from this job posting. 
+Return only the company name, nothing else.
+
+Job posting:
+{job_text[:2000]}"""
+        }],
+        max_tokens=50
+    )
+    return response.choices[0].message.content.strip()
+
+async def analyze(cv_text: str, job_text: str) -> dict:
     prompt = f"""
 Analyze the match between the candidate's CV and the job posting.
 
@@ -22,17 +37,14 @@ Return your response in the following format:
 
 Respond in Serbian language.
 """
-
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=1000
     )
-
     return {"analysis": response.choices[0].message.content}
 
-
-def generate_cover_letter(cv_text: str, job_text: str) -> dict:
+async def generate_cover_letter(cv_text: str, job_text: str) -> dict:
     prompt = f"""
 Based on the candidate's CV and the job posting, write a professional cover letter.
 
@@ -52,17 +64,15 @@ Instructions:
 
 Respond in Serbian language.
 """
-
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=1000
     )
-
     return {"cover_letter": response.choices[0].message.content}
 
-def research_company(company_name: str, job_title: str) -> dict:
-    response = client.responses.create(
+async def research_company(company_name: str, job_title: str) -> dict:
+    response = await client.responses.create(
         model="gpt-4o",
         tools=[{"type": "web_search_preview"}],
         input=f"""
@@ -80,20 +90,4 @@ Find information about:
 Respond in Serbian language.
 """
     )
-
     return {"company_profile": response.output_text}
-
-def extract_company_name(job_text: str) -> str:
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{
-            "role": "user",
-            "content": f"""Extract only the company name from this job posting. 
-Return only the company name, nothing else.
-
-Job posting:
-{job_text[:2000]}"""
-        }],
-        max_tokens=50
-    )
-    return response.choices[0].message.content.strip()

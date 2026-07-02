@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from config import OPENAI_API_KEY
 from pdf_parser import extract_text_from_pdf
 from job_scraper import scrape_job
@@ -53,15 +53,19 @@ def test_company(company_name: str, job_title: str):
     result = research_company(company_name, job_title)
     return result
 
+import asyncio
+
 @app.post("/analyze")
 async def full_analyze(cv_text: str, job_url: str):
     job_text = scrape_job(job_url)
     
-    company_name = extract_company_name(job_text)
+    company_name = await extract_company_name(job_text)
     
-    match_result = analyze(cv_text, job_text)
-    cover_result = generate_cover_letter(cv_text, job_text)
-    company_result = research_company(company_name, "Software Developer")
+    match_result, cover_result, company_result = await asyncio.gather(
+        analyze(cv_text, job_text),
+        generate_cover_letter(cv_text, job_text),
+        research_company(company_name, "Software Developer")
+    )
     
     return {
         "company_name": company_name,
