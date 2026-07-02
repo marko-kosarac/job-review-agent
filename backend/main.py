@@ -3,16 +3,23 @@ from openai import OpenAI
 from config import OPENAI_API_KEY
 from job_scraper import scrape_job
 from agent import analyze, generate_cover_letter, research_company, extract_company_name
-import asyncio
+from fastapi.middleware.cors import CORSMiddleware
 from database import  create_tables, get_db
 from models import Analysis
 from sqlalchemy.orm import Session
+import asyncio
 
 
 app = FastAPI(title="JobReview API")
 client = OpenAI(api_key=OPENAI_API_KEY)
-
 create_tables()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.post("/analyze")
@@ -27,7 +34,6 @@ async def full_analyze(cv_text: str, job_url: str, db: Session = Depends(get_db)
         research_company(company_name, "Software Developer")
     )
 
-    # Sačuvaj u bazu
     analysis = Analysis(
         job_url=job_url,
         company_name=company_name,
