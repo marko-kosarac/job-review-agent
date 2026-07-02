@@ -1,14 +1,14 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, UploadFile, File
 from openai import OpenAI
 from config import OPENAI_API_KEY
 from job_scraper import scrape_job
 from agent import analyze, generate_cover_letter, research_company, extract_company_name
 from fastapi.middleware.cors import CORSMiddleware
-from database import  create_tables, get_db
+from database import create_tables, get_db
 from models import Analysis
+from pdf_parser import extract_text_from_pdf
 from sqlalchemy.orm import Session
 import asyncio
-
 
 app = FastAPI(title="JobReview API")
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -21,6 +21,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+@app.post("/test-pdf")
+async def test_pdf(file: UploadFile = File(...)):
+    file_bytes = await file.read()
+    text = extract_text_from_pdf(file_bytes)
+    return {"text": text}
 
 @app.post("/analyze")
 async def full_analyze(cv_text: str, job_url: str, db: Session = Depends(get_db)):
