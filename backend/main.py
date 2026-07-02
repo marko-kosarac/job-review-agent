@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, UploadFile, File
 from openai import OpenAI
 from config import OPENAI_API_KEY
 from job_scraper import scrape_job
-from agent import analyze, generate_cover_letter, research_company, extract_company_name
+from tools import analyze, generate_cover_letter, research_company, extract_company_name
 from fastapi.middleware.cors import CORSMiddleware
 from database import create_tables, get_db
 from models import Analysis
@@ -63,3 +63,11 @@ async def full_analyze(cv_text: str, job_url: str, db: Session = Depends(get_db)
         "cover_letter": cover_result,
         "company": company_result
     }
+
+from agent import run_agent
+
+@app.post("/agent-analyze")
+async def agent_analyze(cv_text: str, job_url: str, db: Session = Depends(get_db)):
+    result = await run_agent(cv_text, job_url)
+    
+    return result
