@@ -11,9 +11,8 @@ def scrape_job(url: str) -> str:
     
     soup = BeautifulSoup(response.text, "html.parser")
     
-    # Ukloni skripte i stilove
     for tag in soup(["script", "style", "nav", "footer"]):
         tag.decompose()
     
     text = soup.get_text(separator="\n", strip=True)
-    return text[:8000]  # prvih 8000 karaktera
+    return text[:8000] 
