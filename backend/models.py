@@ -15,4 +15,5 @@ class Analysis(Base):
     cover_letter = Column(Text, nullable=True)
     company_profile = Column(Text, nullable=True)
     match_score = Column(Float, nullable=True)
+    language = Column(String, nullable=True, default="en")
     created_at = Column(DateTime, server_default=func.now())
