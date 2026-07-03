@@ -7,6 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: true
 short_description: Analyze job fit, missing skills & generate cover letters
+---
 
 # JobReview
 
