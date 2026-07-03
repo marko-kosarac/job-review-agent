@@ -1,11 +1,12 @@
 ---
-title: JobReview
+title: JobReview Agent
 emoji: 🧾
 colorFrom: blue
 colorTo: indigo
 sdk: docker
 app_port: 7860
 pinned: true
+short_description: AI agent that scores job postings against your CV, flags missing skills, drafts a cover letter, and researches the company.
 ---
 
 # JobReview
