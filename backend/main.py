@@ -5,11 +5,11 @@ from typing import Literal
 from fastapi import FastAPI, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from database import create_tables
 from pdf_parser import extract_text_from_pdf
-from agent import run_agent_stream
+from agent import run_multi_job_stream
 from rate_limit import rate_limit
 
 logging.basicConfig(level=logging.INFO)
@@ -24,11 +24,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+MAX_JOBS_PER_REQUEST = 5
+
 
 class AnalyzeRequest(BaseModel):
     cv_text: str
-    job_url: str
+    job_urls: list[str] = Field(min_length=1, max_length=MAX_JOBS_PER_REQUEST)
     language: Literal["en", "sr"] = "en"
+
+    @field_validator("cv_text")
+    @classmethod
+    def _require_cv_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("CV text is required.")
+        return value
+
+    @field_validator("job_urls")
+    @classmethod
+    def _clean_urls(cls, value: list[str]) -> list[str]:
+        cleaned = list(dict.fromkeys(u.strip() for u in value if u.strip()))
+        if not cleaned:
+            raise ValueError("At least one job URL is required.")
+        return cleaned
 
 
 @app.get("/health")
@@ -46,7 +64,7 @@ async def test_pdf(file: UploadFile = File(...), _rl=Depends(rate_limit)):
 @app.post("/agent-stream")
 async def agent_stream(payload: AnalyzeRequest, _rl=Depends(rate_limit)):
     async def event_generator():
-        async for event in run_agent_stream(payload.cv_text, payload.job_url, payload.language):
+        async for event in run_multi_job_stream(payload.cv_text, payload.job_urls, payload.language):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(

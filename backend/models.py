@@ -9,9 +9,11 @@ class Analysis(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     job_url = Column(String, nullable=False)
     company_name = Column(String, nullable=True)
+    job_title = Column(String, nullable=True)
+    location = Column(String, nullable=True)
     cv_text = Column(Text, nullable=True)
     job_text = Column(Text, nullable=True)
-    match_analysis = Column(Text, nullable=True)
+    match_analysis = Column(Text, nullable=True)  # JSON: {score, assessment, matches, missing, advice}
     cover_letter = Column(Text, nullable=True)
     company_profile = Column(Text, nullable=True)
     match_score = Column(Float, nullable=True)

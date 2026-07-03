@@ -5,7 +5,7 @@ from cache import TTLCache
 
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-COMPANY_RESEARCH_TTL_SECONDS = 60 * 60 * 24 
+COMPANY_RESEARCH_TTL_SECONDS = 60 * 60 * 24  # company info rarely changes day to day
 _company_research_cache = TTLCache(ttl_seconds=COMPANY_RESEARCH_TTL_SECONDS)
 
 LANGUAGE_NAMES = {"en": "English", "sr": "Serbian"}
@@ -15,25 +15,27 @@ def _language_instruction(language: str) -> str:
     return f"Respond in {LANGUAGE_NAMES.get(language, 'English')}."
 
 
-async def extract_company_info(job_text: str) -> dict:
+async def extract_job_info(job_text: str) -> dict:
     response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{
             "role": "user",
-            "content": f"""Extract the company name and job title from this job posting.
-Return strict JSON in this exact shape: {{"company_name": "...", "job_title": "..."}}
+            "content": f"""Extract the company name, job title, and location from this job posting.
+Return strict JSON in this exact shape: {{"company_name": "...", "job_title": "...", "location": "..."}}
 If the job title isn't explicit, infer the most likely title from context.
+For location, use a short form like "Berlin, Remote" or "Remote" or "Unknown" if it isn't stated.
 
 Job posting:
 {job_text[:2000]}"""
         }],
         response_format={"type": "json_object"},
-        max_tokens=100
+        max_tokens=120
     )
     data = json.loads(response.choices[0].message.content)
     return {
         "company_name": data.get("company_name") or "Unknown company",
         "job_title": data.get("job_title") or "Unknown position",
+        "location": data.get("location") or "Unknown",
     }
 
 
@@ -47,24 +49,42 @@ Analyze the match between the candidate's CV and the job posting.
 === CV ===
 {cv_text}
 
-Return your response in the following format, using **bold** markdown for each label:
-1. **SCORE**: a number from 0 to 100 indicating the match
-2. **ASSESSMENT**: "high", "medium" or "low" chance of passing the selection
-3. **MATCHES**: list of things the candidate has that the job requires
-4. **MISSING**: list of things the job requires that the candidate lacks
-5. **ADVICE**: 3 concrete tips on how to improve the CV for this specific job
+Return strict JSON in this exact shape:
+{{
+  "score": <integer 0-100, match score>,
+  "assessment": "<one of: high, medium, low — chance of passing the selection>",
+  "matches": [<short strings — things the candidate has that the job requires>],
+  "missing": [<short strings — things the job requires that the candidate lacks>],
+  "advice": [<3 short, concrete tips to improve the CV for this specific job>]
+}}
 
-{_language_instruction(language)}
+{_language_instruction(language)} (keep "assessment" as one of the literal English
+words high/medium/low so the UI can style it, but write matches/missing/advice
+in the requested language)
 """
     response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=1000
+        response_format={"type": "json_object"},
+        max_tokens=800
     )
-    return {"analysis": response.choices[0].message.content}
+    try:
+        data = json.loads(response.choices[0].message.content)
+    except (TypeError, json.JSONDecodeError):
+        data = {}
+
+    return {
+        "score": data.get("score", 0),
+        "assessment": data.get("assessment", "unknown"),
+        "matches": data.get("matches", []),
+        "missing": data.get("missing", []),
+        "advice": data.get("advice", []),
+    }
 
 
 async def generate_cover_letter(cv_text: str, job_text: str) -> dict:
+    # Always English, regardless of the chosen output language — cover letters
+    # are meant to be sent to employers, most of whom expect English.
     prompt = f"""
 Based on the candidate's CV and the job posting, write a professional cover letter.
 
@@ -93,6 +113,8 @@ Always respond in English, regardless of the CV or job posting's language.
 
 
 async def research_company(company_name: str, job_title: str, language: str = "en") -> dict:
+    # Cached by company name + language (not job_title) — a company's culture/
+    # salary profile is reusable across different postings from the same employer.
     cache_key = f"{company_name.strip().lower()}:{language}"
     cached = _company_research_cache.get(cache_key)
     if cached is not None:
