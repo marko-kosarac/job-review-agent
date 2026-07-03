@@ -1,10 +1,12 @@
 import json
 import logging
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from database import create_tables
@@ -75,3 +77,7 @@ async def agent_stream(payload: AnalyzeRequest, _rl=Depends(rate_limit)):
             "X-Accel-Buffering": "no",
         }
     )
+
+FRONTEND_DIST = Path(__file__).parent / "static"
+if FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")

@@ -13,7 +13,7 @@ class Analysis(Base):
     location = Column(String, nullable=True)
     cv_text = Column(Text, nullable=True)
     job_text = Column(Text, nullable=True)
-    match_analysis = Column(Text, nullable=True)  # JSON: {score, assessment, matches, missing, advice}
+    match_analysis = Column(Text, nullable=True) 
     cover_letter = Column(Text, nullable=True)
     company_profile = Column(Text, nullable=True)
     match_score = Column(Float, nullable=True)

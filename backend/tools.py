@@ -5,7 +5,7 @@ from cache import TTLCache
 
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-COMPANY_RESEARCH_TTL_SECONDS = 60 * 60 * 24  # company info rarely changes day to day
+COMPANY_RESEARCH_TTL_SECONDS = 60 * 60 * 24
 _company_research_cache = TTLCache(ttl_seconds=COMPANY_RESEARCH_TTL_SECONDS)
 
 LANGUAGE_NAMES = {"en": "English", "sr": "Serbian"}
@@ -83,8 +83,6 @@ in the requested language)
 
 
 async def generate_cover_letter(cv_text: str, job_text: str) -> dict:
-    # Always English, regardless of the chosen output language — cover letters
-    # are meant to be sent to employers, most of whom expect English.
     prompt = f"""
 Based on the candidate's CV and the job posting, write a professional cover letter.
 
@@ -113,8 +111,6 @@ Always respond in English, regardless of the CV or job posting's language.
 
 
 async def research_company(company_name: str, job_title: str, language: str = "en") -> dict:
-    # Cached by company name + language (not job_title) — a company's culture/
-    # salary profile is reusable across different postings from the same employer.
     cache_key = f"{company_name.strip().lower()}:{language}"
     cached = _company_research_cache.get(cache_key)
     if cached is not None:

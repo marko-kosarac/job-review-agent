@@ -4,7 +4,7 @@ import Results from '../components/Results'
 import JobCard from '../components/JobCard'
 import JobUrlList from '../components/JobUrlList'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 function sortJobs(jobs, sortBy) {
   const withResults = [...jobs]
@@ -15,8 +15,7 @@ function sortJobs(jobs, sortBy) {
       const cmp = nameA.localeCompare(nameB)
       return sortBy === 'company-asc' ? cmp : -cmp
     }
-    // Default: match score, descending. Jobs without a result yet (still
-    // loading, or errored) sort to the bottom.
+
     const scoreA = a.result?.analyze_match?.score ?? -1
     const scoreB = b.result?.analyze_match?.score ?? -1
     return scoreB - scoreA
@@ -35,7 +34,7 @@ function HomePage() {
   const [jobs, setJobs] = useState([])
   const [sortBy, setSortBy] = useState('score')
   const [selectedUrl, setSelectedUrl] = useState(null)
-  const [view, setView] = useState('form') // 'form' | 'results'
+  const [view, setView] = useState('form') 
 
   const abortRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -66,8 +65,6 @@ function HomePage() {
       return
     }
 
-    // Cancel any still-running stream from a previous run so its events
-    // can't land on the new job list (e.g. if the same URL is reused).
     if (abortRef.current) abortRef.current.abort()
     const controller = new AbortController()
     abortRef.current = controller
@@ -88,9 +85,6 @@ function HomePage() {
         finalCvText = pdfResponse.data.text
       }
 
-      // POST + manual stream reading instead of EventSource: EventSource only
-      // supports GET, which meant the CV text and job URLs had to travel as
-      // query-string params (URL length limits, ends up in server access logs).
       const response = await fetch(`${API_URL}/agent-stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

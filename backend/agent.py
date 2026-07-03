@@ -14,13 +14,9 @@ logger = logging.getLogger(__name__)
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 CACHE_TTL_HOURS = 24
-MAX_CONCURRENT_JOBS = 4  # caps how many job pipelines run at once when analyzing a batch of URLs
+MAX_CONCURRENT_JOBS = 4 
 
-# Tool schemas intentionally do NOT ask the model for cv_text/job_text.
-# Those blobs live in server-side `state` (see run_agent_stream) — the agent
-# only ever passes small, cheap arguments. Requiring the model to re-emit the
-# full CV + job posting as JSON tool-call arguments would be expensive and
-# risk it paraphrasing/truncating the text it "typed back out".
+
 TOOLS = [
     {
         "type": "function",
@@ -102,12 +98,6 @@ English regardless of this — don't mention that as an issue."""
 
 
 def _get_cached_analysis(job_url: str, cv_text: str, language: str) -> Analysis | None:
-    # Opens and closes its own short-lived session rather than sharing one
-    # held for the whole agent run — with several jobs running concurrently,
-    # each holding a connection idle across many seconds of LLM calls was
-    # enough to trip hosted Postgres providers that close idle SSL
-    # connections server-side (surfaces as "SSL connection has been closed
-    # unexpectedly").
     db = SessionLocal()
     try:
         cutoff = datetime.now(timezone.utc) - timedelta(hours=CACHE_TTL_HOURS)
@@ -253,7 +243,6 @@ async def run_agent_stream(cv_text: str, job_url: str, language: str = "en"):
                 else:
                     sequential_calls.append(tool_call)
 
-            # Sequential tools (scrape, extract) — each depends on the previous step.
             scrape_failed = False
             for tool_call in sequential_calls:
                 tool_name = tool_call.function.name
@@ -278,7 +267,6 @@ async def run_agent_stream(cv_text: str, job_url: str, language: str = "en"):
             if scrape_failed:
                 return
 
-            # Parallel tools (analyze, cover letter, company research).
             if parallel_calls:
                 names = [tc.function.name for tc in parallel_calls]
                 yield {"status": "progress", "message": "In parallel: " + ", ".join(STATUS_MESSAGES.get(n, n) for n in names)}

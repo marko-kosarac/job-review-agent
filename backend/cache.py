@@ -1,5 +1,7 @@
 import time
 
+MAX_ENTRIES = 1000
+
 
 class TTLCache:
     """Simple in-process TTL cache. Resets on server restart."""
@@ -19,4 +21,6 @@ class TTLCache:
         return value
 
     def set(self, key: str, value):
+        if len(self._store) >= MAX_ENTRIES:
+            self._store.clear()
         self._store[key] = (time.time() + self.ttl, value)
