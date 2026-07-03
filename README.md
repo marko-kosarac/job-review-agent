@@ -6,8 +6,7 @@ colorTo: indigo
 sdk: docker
 app_port: 7860
 pinned: true
-short_description: Analyze job fit, missing skills & cover letters
----
+short_description: Analyze job fit, missing skills & generate cover letters
 
 # JobReview
 
